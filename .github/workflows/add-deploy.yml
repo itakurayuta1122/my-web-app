@@ -1,0 +1,92 @@
+name: Build and Deploy Application
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-container-cicd
+  ACR_NAME: mywebregistry2026
+  WEBAPP_NAME: my-web-app-2026
+  IMAGE_NAME: my-web-app
+
+jobs:
+  build-and-deploy:
+    name: Build image and deploy Web App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build container image
+        shell: bash
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --tag "$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}" \
+            .
+
+      - name: Push container image
+        shell: bash
+        run: |
+          docker push "$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}"
+
+      - name: Update Web App image
+        shell: bash
+        run: |
+          az webapp config container set \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container-image-name "$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.sha }}"
+
+      - name: Restart Web App
+        shell: bash
+        run: |
+          az webapp restart \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP"
+
+      - name: Verify deployment
+        shell: bash
+        run: |
+          HOST_NAME=$(az webapp show \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query defaultHostName \
+            --output tsv)
+          URL="https://${HOST_NAME}"
+          echo "Checking ${URL}"
+
+          for i in {1..10}; do
+            STATUS=$(curl \
+              --silent \
+              --show-error \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              "$URL" || true)
+            echo "Attempt ${i}: HTTP ${STATUS}"
+            if [ "$STATUS" = "200" ]; then
+              echo "Deployment succeeded: $URL"
+              exit 0
+            fi
+            sleep 15
+          done
+
+          echo "Deployment verification failed."
+          exit 1

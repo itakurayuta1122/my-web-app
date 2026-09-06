@@ -1,0 +1,43 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  LOCATION: japanwest
+
+jobs:
+  infra:
+    name: Deploy infrastructure (Bicep)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-if
+        shell: bash
+        run: |
+          az deployment sub what-if \
+            --location "$LOCATION" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json
+
+      - name: Deploy Bicep
+        shell: bash
+        run: |
+          az deployment sub create \
+            --name container-cicd-${{ github.run_number }} \
+            --location "$LOCATION" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json

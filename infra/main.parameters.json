@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": { "value": "rg-container-cicd" },
+    "location":          { "value": "japanwest" },
+    "acrName":           { "value": "mywebregistry2026" },
+    "planName":          { "value": "plan-container-f1" },
+    "webAppName":        { "value": "my-web-app-2026" },
+    "planSku":           { "value": "F1" },
+    "websitesPort":      { "value": "3000" },
+    "bootstrapImage":    { "value": "mcr.microsoft.com/azuredocs/aci-helloworld:latest" }
+  }
+}
