@@ -58,7 +58,7 @@ const server = http.createServer(async (request, response) => {
   // ---------- トップ ----------
   if (requestUrl.pathname === "/") {
     return send(response, 200, page("Azureハンドオフ", `
-      <h1>Azureハンドオフアプリ</h1>
+      <h1>Azureハンドオフアプリプラス</h1>
       <p>Azure App Serviceで正常に動作しています。</p>
       <p>AWS Webアプリの「Azureへ移動」から遷移してください。</p>`));
   }
